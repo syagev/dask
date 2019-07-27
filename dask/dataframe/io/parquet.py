@@ -632,7 +632,7 @@ def _read_parquet_row_group(
 
 
 def _write_partition_fastparquet(
-    df, fs, path, filename, fmd, compression, partition_on
+    df, fs, path, filename, fmd, compression, partition_on, stats=True
 ):
     from fastparquet.writer import partition_on_columns, make_part_file
     import fastparquet
@@ -646,7 +646,7 @@ def _write_partition_fastparquet(
     elif partition_on:
         if LooseVersion(fastparquet.__version__) >= "0.1.4":
             rgs = partition_on_columns(
-                df, partition_on, path, filename, fmd, compression, fs.open, fs.mkdirs
+                df, partition_on, path, filename, fmd, compression, fs.open, fs.mkdirs, stats=stats
             )
         else:
             rgs = partition_on_columns(
@@ -659,13 +659,14 @@ def _write_partition_fastparquet(
                 compression,
                 fs.open,
                 fs.mkdirs,
+                stats=stats
             )
     else:
         # Fastparquet current doesn't properly set `num_rows` in the output
         # metadata. Set it here to fix that.
         fmd.num_rows = len(df)
         with fs.open(fs.sep.join([path, filename]), "wb") as fil:
-            rgs = make_part_file(fil, df, fmd.schema, compression=compression, fmd=fmd)
+            rgs = make_part_file(fil, df, fmd.schema, compression=compression, fmd=fmd, stats=stats)
     return rgs
 
 
@@ -679,6 +680,7 @@ def _write_fastparquet(
     ignore_divisions=False,
     partition_on=None,
     compression=None,
+    stats=True,
     **kwargs
 ):
     import fastparquet
@@ -755,7 +757,7 @@ def _write_fastparquet(
 
     write = delayed(_write_partition_fastparquet, pure=False)
     writes = [
-        write(part, fs, path, filename, fmd, compression, partition_on)
+        write(part, fs, path, filename, fmd, compression, partition_on, stats=stats)
         for filename, part in zip(filenames, df.to_delayed())
     ]
 
