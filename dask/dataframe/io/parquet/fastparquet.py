@@ -592,6 +592,7 @@ class FastParquetEngine(Engine):
         return_metadata,
         fmd=None,
         compression=None,
+        stats=True,
         **kwargs
     ):
         fmd = copy.copy(fmd)
@@ -602,7 +603,7 @@ class FastParquetEngine(Engine):
             mkdirs = lambda x: fs.mkdirs(x, exist_ok=True)
             if LooseVersion(fastparquet.__version__) >= "0.1.4":
                 rgs = partition_on_columns(
-                    df, partition_on, path, filename, fmd, compression, fs.open, mkdirs
+                    df, partition_on, path, filename, fmd, compression, fs.open, mkdirs, stats
                 )
             else:
                 rgs = partition_on_columns(
@@ -615,12 +616,13 @@ class FastParquetEngine(Engine):
                     compression,
                     fs.open,
                     mkdirs,
+                    stats
                 )
         else:
             with fs.open(fs.sep.join([path, filename]), "wb") as fil:
                 fmd.num_rows = len(df)
                 rg = make_part_file(
-                    fil, df, fmd.schema, compression=compression, fmd=fmd
+                    fil, df, fmd.schema, compression=compression, fmd=fmd, stats=stats
                 )
             for chunk in rg.columns:
                 chunk.file_path = filename

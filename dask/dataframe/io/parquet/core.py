@@ -239,13 +239,13 @@ def read_parquet(
     # Parse dataset statistics from metadata (if available)
     parts, divisions, index, index_in_columns = process_statistics(
         parts, statistics, filters, index, chunksize
-    )
+            )
 
     # Account for index and columns arguments.
     # Modify `meta` dataframe accordingly
     meta, index, columns = set_index_columns(
         meta, index, columns, index_in_columns, auto_index_allowed
-    )
+                    )
     if meta.index.name == NONE_LABEL:
         meta.index.name = None
 
@@ -273,7 +273,7 @@ def read_parquet_part(func, fs, meta, part, columns, index, kwargs):
         dfs = [func(fs, rg, columns.copy(), index, **kwargs) for rg in part]
         df = concat(dfs, axis=0)
     else:
-        df = func(fs, part, columns, index, **kwargs)
+    df = func(fs, part, columns, index, **kwargs)
 
     if meta.columns.name:
         df.columns.name = meta.columns.name
@@ -298,6 +298,7 @@ def to_parquet(
     write_metadata_file=True,
     compute=True,
     compute_kwargs=None,
+    stats=True,
     **kwargs
 ):
     """Store Dask.dataframe to Parquet files
@@ -464,6 +465,7 @@ def to_parquet(
             fmd=meta,
             compression=compression,
             index_cols=index_cols,
+            stats=stats,
             **kwargs_pass
         )
         for d, filename in zip(df.to_delayed(), filenames)
@@ -613,39 +615,39 @@ def apply_filters(parts, statistics, filters):
 
     def apply_conjunction(parts, statistics, conjunction):
         for column, operator, value in conjunction:
-            out_parts = []
-            out_statistics = []
-            for part, stats in zip(parts, statistics):
-                if "filter" in stats and stats["filter"]:
-                    continue  # Filtered by engine
-                try:
-                    c = toolz.groupby("name", stats["columns"])[column][0]
-                    min = c["min"]
-                    max = c["max"]
-                except KeyError:
-                    out_parts.append(part)
-                    out_statistics.append(stats)
-                else:
-                    if (
-                        operator == "=="
-                        and min <= value <= max
-                        or operator == "<"
-                        and min < value
-                        or operator == "<="
-                        and min <= value
-                        or operator == ">"
-                        and max > value
-                        or operator == ">="
-                        and max >= value
+        out_parts = []
+        out_statistics = []
+        for part, stats in zip(parts, statistics):
+            if "filter" in stats and stats["filter"]:
+                continue  # Filtered by engine
+            try:
+                c = toolz.groupby("name", stats["columns"])[column][0]
+                min = c["min"]
+                max = c["max"]
+            except KeyError:
+                out_parts.append(part)
+                out_statistics.append(stats)
+            else:
+                if (
+                    operator == "=="
+                    and min <= value <= max
+                    or operator == "<"
+                    and min < value
+                    or operator == "<="
+                    and min <= value
+                    or operator == ">"
+                    and max > value
+                    or operator == ">="
+                    and max >= value
                         or operator == "in"
                         and any(min <= item <= max for item in value)
-                    ):
-                        out_parts.append(part)
-                        out_statistics.append(stats)
+                ):
+                    out_parts.append(part)
+                    out_statistics.append(stats)
 
-            parts, statistics = out_parts, out_statistics
+        parts, statistics = out_parts, out_statistics
 
-        return parts, statistics
+    return parts, statistics
 
     conjunction, *disjunction = filters if isinstance(filters[0], list) else [filters]
 
