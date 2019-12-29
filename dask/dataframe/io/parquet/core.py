@@ -360,6 +360,7 @@ def to_parquet(
     storage_options=None,
     write_metadata_file=True,
     compute=True,
+    stats=True,
     **kwargs
 ):
     """Store Dask.dataframe to Parquet files
@@ -511,6 +512,7 @@ def to_parquet(
             fmd=meta,
             compression=compression,
             index_cols=index_cols,
+            stats=stats,
             **kwargs_pass
         )
         for d, filename in zip(df.to_delayed(), filenames)
