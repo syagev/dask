@@ -361,6 +361,7 @@ def to_parquet(
     write_metadata_file=True,
     compute=True,
     stats=True,
+    split_factor=1,
     **kwargs
 ):
     """Store Dask.dataframe to Parquet files
@@ -497,7 +498,8 @@ def to_parquet(
     )
 
     # Use i_offset and df.npartitions to define file-name list
-    filenames = ["part.%i.parquet" % (i + i_offset) for i in range(df.npartitions)]
+    filenames = [["part.%i.parquet" % (i + i_offset + i_split) for i_split in range(split_factor)]
+                 for i in range(0, df.npartitions * split_factor, split_factor)]
 
     # write parts
     dwrite = delayed(engine.write_partition)

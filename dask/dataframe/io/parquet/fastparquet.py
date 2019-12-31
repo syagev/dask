@@ -444,7 +444,7 @@ class FastParquetEngine(Engine):
         df,
         path,
         fs,
-        filename,
+        filenames,
         partition_on,
         return_metadata,
         fmd=None,
@@ -453,37 +453,45 @@ class FastParquetEngine(Engine):
         **kwargs
     ):
         fmd = copy.copy(fmd)
+        rgs = []
+        divisions = np.linspace(0, len(df), len(filenames) + 1).astype(int)
+        df_parts = (df.iloc[divisions[i] : divisions[i + 1]] for i in range(len(filenames)))
+
         if not len(df):
             # Write nothing for empty partitions
-            rgs = []
+            pass
         elif partition_on:
-            mkdirs = lambda x: fs.mkdirs(x, exist_ok=True)
-            if LooseVersion(fastparquet.__version__) >= "0.1.4":
-                rgs = partition_on_columns(
-                    df, partition_on, path, filename, fmd, compression, fs.open, mkdirs, stats
-                )
-            else:
-                rgs = partition_on_columns(
-                    df,
-                    partition_on,
-                    path,
-                    filename,
-                    fmd,
-                    fs.sep,
-                    compression,
-                    fs.open,
-                    mkdirs,
-                    stats
-                )
+            for df_part, filename in zip(df_parts, filenames):
+                mkdirs = lambda x: fs.mkdirs(x, exist_ok=True)
+                if LooseVersion(fastparquet.__version__) >= "0.1.4":
+                    rgs += partition_on_columns(
+                        df_part, partition_on, path, filename, fmd, compression, fs.open, mkdirs, stats
+                    )
+                else:
+                    rgs += partition_on_columns(
+                        df_part,
+                        partition_on,
+                        path,
+                        filename,
+                        fmd,
+                        fs.sep,
+                        compression,
+                        fs.open,
+                        mkdirs,
+                        stats
+                    )
         else:
-            with fs.open(fs.sep.join([path, filename]), "wb") as fil:
-                fmd.num_rows = len(df)
-                rg = make_part_file(
-                    fil, df, fmd.schema, compression=compression, fmd=fmd, stats=stats
-                )
-            for chunk in rg.columns:
-                chunk.file_path = filename
-            rgs = [rg]
+            rgs = []
+            for df_part, filename in zip(df_parts, filenames):
+                with fs.open(fs.sep.join([path, filename]), "wb") as fil:
+                    fmd.num_rows = len(df_part)
+                    rg = make_part_file(
+                        fil, df_part, fmd.schema, compression=compression, fmd=fmd, stats=stats
+                    )
+                for chunk in rg.columns:
+                    chunk.file_path = filename
+                rgs.append(rg)
+
         if return_metadata:
             return rgs
         else:
