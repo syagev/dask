@@ -273,7 +273,7 @@ def read_parquet_part(func, fs, meta, part, columns, index, kwargs):
         dfs = [func(fs, rg, columns.copy(), index, **kwargs) for rg in part]
         df = concat(dfs, axis=0)
     else:
-    df = func(fs, part, columns, index, **kwargs)
+        df = func(fs, part, columns, index, **kwargs)
 
     if meta.columns.name:
         df.columns.name = meta.columns.name
@@ -617,39 +617,39 @@ def apply_filters(parts, statistics, filters):
 
     def apply_conjunction(parts, statistics, conjunction):
         for column, operator, value in conjunction:
-        out_parts = []
-        out_statistics = []
-        for part, stats in zip(parts, statistics):
-            if "filter" in stats and stats["filter"]:
-                continue  # Filtered by engine
-            try:
-                c = toolz.groupby("name", stats["columns"])[column][0]
-                min = c["min"]
-                max = c["max"]
-            except KeyError:
-                out_parts.append(part)
-                out_statistics.append(stats)
-            else:
-                if (
-                    operator == "=="
-                    and min <= value <= max
-                    or operator == "<"
-                    and min < value
-                    or operator == "<="
-                    and min <= value
-                    or operator == ">"
-                    and max > value
-                    or operator == ">="
-                    and max >= value
-                        or operator == "in"
-                        and any(min <= item <= max for item in value)
-                ):
+            out_parts = []
+            out_statistics = []
+            for part, stats in zip(parts, statistics):
+                if "filter" in stats and stats["filter"]:
+                    continue  # Filtered by engine
+                try:
+                    c = toolz.groupby("name", stats["columns"])[column][0]
+                    min = c["min"]
+                    max = c["max"]
+                except KeyError:
                     out_parts.append(part)
                     out_statistics.append(stats)
+                else:
+                    if (
+                        operator == "=="
+                        and min <= value <= max
+                        or operator == "<"
+                        and min < value
+                        or operator == "<="
+                        and min <= value
+                        or operator == ">"
+                        and max > value
+                        or operator == ">="
+                        and max >= value
+                            or operator == "in"
+                            and any(min <= item <= max for item in value)
+                    ):
+                        out_parts.append(part)
+                        out_statistics.append(stats)
 
-        parts, statistics = out_parts, out_statistics
+            parts, statistics = out_parts, out_statistics
 
-    return parts, statistics
+        return parts, statistics
 
     conjunction, *disjunction = filters if isinstance(filters[0], list) else [filters]
 
